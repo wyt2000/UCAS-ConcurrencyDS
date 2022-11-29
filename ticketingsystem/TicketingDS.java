@@ -11,7 +11,7 @@ public class TicketingDS implements TicketingSystem {
     private int threadnum;
 
     private long tid;                                               // Next available tid.
-    private HashSet<Ticket> tickets;
+    private HashSet<Ticket> tickets;                                // Tickets sold.
     private Vector<Vector<Vector<Boolean>>> seats;                  // Seat id to stations of every route.
 
     public TicketingDS(int _routenum, int _coachnum, int _seatnum, int _stationnum, int _threadnum) {
@@ -39,16 +39,16 @@ public class TicketingDS implements TicketingSystem {
 
     @Override
     public Ticket buyTicket(String passenger, int route, int departure, int arrival) {
-        /* Find a seat of route, which isn't occupied from departure to arrival. */
+        /* Find a seat of route, which isn't occupied [departure, arrival). */
         int i;
         for (i = 0; i < coachnum * seatnum; ++i) {
             int j;
-            for (j = departure; j <= arrival; ++j) {
+            for (j = departure; j < arrival; ++j) {
                 if (seats.get(route - 1).get(i).get(j - 1)) {
                     break;
                 }
             }
-            if (j == arrival + 1) {
+            if (j == arrival) {
                 break;
             }
         }
@@ -57,7 +57,7 @@ public class TicketingDS implements TicketingSystem {
         }
 
         /* Occupied the stations. */
-        for (int j = departure; j <= arrival; ++j) {
+        for (int j = departure; j < arrival; ++j) {
             seats.get(route - 1).get(i).set(j - 1, true);
         }
 
@@ -85,12 +85,12 @@ public class TicketingDS implements TicketingSystem {
         int i;
         for (i = 0; i < coachnum * seatnum; ++i) {
             int j;
-            for (j = departure; j <= arrival; ++j) {
+            for (j = departure; j < arrival; ++j) {
                 if (seats.get(route - 1).get(i).get(j - 1)) {
                     break;
                 }
             }
-            if (j == arrival + 1) {
+            if (j == arrival) {
                 ++cnt;
             }
         }
@@ -103,9 +103,10 @@ public class TicketingDS implements TicketingSystem {
             return false;
         }
         int seat = (ticket.coach - 1) * seatnum + (ticket.seat - 1);
-        for (int k = ticket.departure; k <= ticket.arrival; ++k) {
+        for (int k = ticket.departure; k < ticket.arrival; ++k) {
             seats.get(ticket.route - 1).get(seat).set(k - 1, false);
         }
+        tickets.remove(ticket);
         return true;
     }
 

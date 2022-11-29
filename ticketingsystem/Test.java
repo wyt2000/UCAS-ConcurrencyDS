@@ -10,7 +10,7 @@ public class Test {
         final int threadnum = 16;
 
 		final TicketingDS tds = new TicketingDS(routenum, coachnum, seatnum, stationnum, threadnum);
-        tds.buyTicket("wyt", 0, 0, 1);
+        tds.buyTicket("wyt", 1, 1, 2);
 
 		//ToDo
 	    
