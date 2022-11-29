@@ -100,6 +100,9 @@ public class TicketingDS implements TicketingSystem {
     @Override
     public boolean refundTicket(Ticket ticket) {
         if (!tickets.contains(ticket)) {
+            for (Ticket t : tickets) {
+                System.out.println(t);
+            }
             return false;
         }
         int seat = (ticket.coach - 1) * seatnum + (ticket.seat - 1);
