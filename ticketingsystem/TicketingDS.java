@@ -1,6 +1,6 @@
 package ticketingsystem;
 
-import java.util.Vector;
+import java.util.ArrayList;
 import java.util.HashSet;
 
 public class TicketingDS implements TicketingSystem {
@@ -12,7 +12,7 @@ public class TicketingDS implements TicketingSystem {
 
     private long tid;                                               // Next available tid.
     private HashSet<Ticket> tickets;                                // Tickets sold.
-    private Vector<Vector<Vector<Boolean>>> seats;                  // Seat id to stations of every route.
+    private ArrayList<ArrayList<ArrayList<Boolean>>> seats;                  // Seat id to stations of every route.
 
     public TicketingDS(int _routenum, int _coachnum, int _seatnum, int _stationnum, int _threadnum) {
         routenum    = _routenum;
@@ -23,11 +23,11 @@ public class TicketingDS implements TicketingSystem {
 
         tid         = 0;
         tickets     = new HashSet<Ticket>();
-        seats       = new Vector<Vector<Vector<Boolean>>>();
+        seats       = new ArrayList<ArrayList<ArrayList<Boolean>>>();
         for (int i = 0; i < routenum; ++i) {
-            Vector<Vector<Boolean>> seatsPerCoach = new Vector<Vector<Boolean>>();
+            ArrayList<ArrayList<Boolean>> seatsPerCoach = new ArrayList<ArrayList<Boolean>>();
             for (long j = 0; j < coachnum * seatnum; ++j) {
-                Vector<Boolean> stations = new Vector<Boolean>();
+                ArrayList<Boolean> stations = new ArrayList<Boolean>();
                 for (int k = 0; k < stationnum; ++k) {
                     stations.add(false);
                 }
