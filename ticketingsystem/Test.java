@@ -60,7 +60,6 @@ public class Test{
     final static ArrayList<Double> methodTime = new ArrayList<Double>();
     final static ArrayList<Long> methodCount = new ArrayList<Long>();
 	volatile static boolean initLock = false;
-//	final static AtomicInteger tidGen = new AtomicInteger(0);
 	final static Random rand = new Random();
 	public static void initialization(){
 	  tds = new TicketingDS(routenum, coachnum, seatnum, stationnum, threadnum);
@@ -236,7 +235,6 @@ public class Test{
 		threads[i].join();
 	  }	
 
-      double totalTime = System.nanoTime() - startTime;
       long totalCount = 0;
       for (int i = 0; i < methodList.size(); ++i) {
         System.out.println("Method: " + methodList.get(i));
@@ -244,6 +242,7 @@ public class Test{
         System.out.println("Average Cost: " + methodTime.get(i) + " ns.\n");
         totalCount += methodCount.get(i);
       }
+      double totalTime = System.nanoTime() - startTime;
       System.out.println("Total Count: " + totalCount + " times.");
       System.out.println("Throughput: " + totalCount / totalTime * 1e6 + " times / ms.");
 	}
