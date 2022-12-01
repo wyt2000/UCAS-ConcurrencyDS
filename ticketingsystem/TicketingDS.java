@@ -38,7 +38,7 @@ public class TicketingDS implements TicketingSystem {
     }
 
     @Override
-    public Ticket buyTicket(String passenger, int route, int departure, int arrival) {
+    public synchronized Ticket buyTicket(String passenger, int route, int departure, int arrival) {
         /* Find a seat of route, which isn't occupied [departure, arrival). */
         int i;
         for (i = 0; i < coachnum * seatnum; ++i) {
@@ -80,7 +80,7 @@ public class TicketingDS implements TicketingSystem {
     }
 
     @Override
-    public int inquiry(int route, int departure, int arrival) {
+    public synchronized int inquiry(int route, int departure, int arrival) {
         int cnt = 0;
         int i;
         for (i = 0; i < coachnum * seatnum; ++i) {
@@ -98,7 +98,7 @@ public class TicketingDS implements TicketingSystem {
     }
 
     @Override
-    public boolean refundTicket(Ticket ticket) {
+    public synchronized boolean refundTicket(Ticket ticket) {
         if (!tickets.contains(ticket)) {
             for (Ticket t : tickets) {
                 System.out.println(t);
@@ -114,13 +114,13 @@ public class TicketingDS implements TicketingSystem {
     }
 
     @Override
-    public boolean buyTicketReplay(Ticket ticket) {
+    public synchronized boolean buyTicketReplay(Ticket ticket) {
         // Useless
         return true;
     }
 
     @Override
-    public boolean refundTicketReplay(Ticket ticket) {
+    public synchronized boolean refundTicketReplay(Ticket ticket) {
         // Useless
         return true;
     }
