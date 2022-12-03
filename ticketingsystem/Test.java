@@ -2,7 +2,6 @@ package ticketingsystem;
 
 import java.util.List;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -11,33 +10,7 @@ public class Test{
 	static int threadnum;//input
 	static int testnum;//input
 	static boolean isSequential;//input
-	static int msec = 0;
-	static int nsec = 0;
 	static int totalPc;
-    
-	static  AtomicInteger sLock = new AtomicInteger(0); //Synchronization Lock
-	static boolean[] fin;
-
-	protected static boolean exOthNotFin(int tNum, int tid) {
-		boolean flag = false;
-		for (int k = 0; k < tNum; k++) {
-			if (k == tid) continue;
-			flag = (flag || !(fin[k])); 
-		}
-		return flag;
-	}
-
-    static void SLOCK_TAKE() {
-    	while (sLock.compareAndSet(0, 1) == false) {}
-    }
-
-    static void SLOCK_GIVE() {
-        sLock.set(0);
-    }
-
-    static boolean SLOCK_TRY() {
-        return (sLock.get() == 0);
-    }
 
 /****************Manually Set Testing Information **************/
 
@@ -50,15 +23,20 @@ public class Test{
 	static int buyRatio = 20; 
 	static int inqRatio = 30; 
 
-
 	static TicketingDS tds;
 	final static List<String> methodList = new ArrayList<String>();
 	final static List<Integer> freqList = new ArrayList<Integer>();
 	final static List<Ticket> currentTicket = new ArrayList<Ticket>();
 	final static List<String> currentRes = new ArrayList<String>();
     final static ArrayList<List<Ticket>> soldTicket = new ArrayList<List<Ticket>>();
-    final static ArrayList<Double> methodTime = new ArrayList<Double>();
-    final static ArrayList<Long> methodCount = new ArrayList<Long>();
+
+    final static ArrayList<Long> buyTime = new ArrayList<Long>();
+    final static ArrayList<Long> inqTime = new ArrayList<Long>();
+    final static ArrayList<Long> refTime = new ArrayList<Long>();
+    final static ArrayList<Long> buyCount = new ArrayList<Long>();
+    final static ArrayList<Long> inqCount = new ArrayList<Long>();
+    final static ArrayList<Long> refCount = new ArrayList<Long>();
+
 	volatile static boolean initLock = false;
 	final static Random rand = new Random();
 	public static void initialization(){
@@ -69,20 +47,23 @@ public class Test{
 		currentTicket.add(null);
 		currentRes.add("");
 	  }
-		//method freq is up to	
+
+	  //method freq is up to	
 	  methodList.add("refundTicket");
 	  freqList.add(refRatio);
-      methodTime.add(0.0);
-      methodCount.add(0L);
 	  methodList.add("buyTicket");
 	  freqList.add(refRatio+buyRatio);
-      methodTime.add(0.0);
-      methodCount.add(0L);
 	  methodList.add("inquiry");
 	  freqList.add(refRatio+buyRatio+inqRatio);
-      methodTime.add(0.0);
-      methodCount.add(0L);
 	  totalPc = refRatio+buyRatio+inqRatio;
+      for (int i = 0; i < threadnum; ++i) {
+        buyTime.add(0L);
+        inqTime.add(0L);
+        refTime.add(0L);
+        buyCount.add(0L);
+        inqCount.add(0L);
+        refCount.add(0L);
+      }
 	}
 	public static String getPassengerName() {
 		long uid = rand.nextInt(testnum);
@@ -123,13 +104,9 @@ public class Test{
 		return true;
   }
 
-	public static void print(long preTime, long postTime, String actionName){
-	  Ticket ticket = currentTicket.get(ThreadId.get());
-	  System.out.println(preTime + " " + postTime + " " +  ThreadId.get() + " " + actionName + " " + ticket.tid + " " + ticket.passenger + " " + ticket.route + " " + ticket.coach + " " + ticket.departure + " " + ticket.arrival + " " + ticket.seat + " " + currentRes.get(ThreadId.get()));
-	}
-
 	public static boolean execute(int num){
 	  int route, departure, arrival;
+      long preTime, postTime;
 	  Ticket ticket = new Ticket();;
 	  switch(num){
 		case 0://refund
@@ -140,39 +117,35 @@ public class Test{
 		  if(ticket == null){
 			return false;
 		  }
-		  currentTicket.set(ThreadId.get(), ticket);
-		  boolean flag = tds.refundTicket(ticket);
-		  currentRes.set(ThreadId.get(), "true"); 
-		  return flag;
+          preTime = System.nanoTime();
+		  tds.refundTicket(ticket);
+          postTime = System.nanoTime();
+          refTime.set(ThreadId.get(), refTime.get(ThreadId.get()) + (postTime - preTime));
+          refCount.set(ThreadId.get(), refCount.get(ThreadId.get()) + 1);
+		  return true;
 		case 1://buy
           String passenger = getPassengerName();
           route = rand.nextInt(routenum) + 1;
           departure = rand.nextInt(stationnum - 1) + 1;
           arrival = departure + rand.nextInt(stationnum - departure) + 1;
+          preTime = System.nanoTime();
 		  ticket = tds.buyTicket(passenger, route, departure, arrival);
-		  if(ticket == null){
-			ticket = new Ticket();
-			ticket.passenger = passenger;
-			ticket.route = route;
-			ticket.departure = departure;
-			ticket.arrival = arrival;
-			ticket.seat = 0;
-			currentTicket.set(ThreadId.get(), ticket);
-			currentRes.set(ThreadId.get(), "false");
-			return true;
-		  }
-		  currentTicket.set(ThreadId.get(), ticket);
-		  currentRes.set(ThreadId.get(), "true");
-		  soldTicket.get(ThreadId.get()).add(ticket);
+          postTime = System.nanoTime();
+          buyTime.set(ThreadId.get(), buyTime.get(ThreadId.get()) + (postTime - preTime));
+          buyCount.set(ThreadId.get(), buyCount.get(ThreadId.get()) + 1);
+          if (ticket != null) {
+		    soldTicket.get(ThreadId.get()).add(ticket);
+          }
 		  return true;
 		case 2://inquiry
-          ticket.passenger = getPassengerName();
           ticket.route = rand.nextInt(routenum) + 1;
           ticket.departure = rand.nextInt(stationnum - 1) + 1;
           ticket.arrival = ticket.departure + rand.nextInt(stationnum - ticket.departure) + 1; // arrival is always greater than departure
+          preTime = System.nanoTime();
 		  ticket.seat = tds.inquiry(ticket.route, ticket.departure, ticket.arrival);
-		  currentTicket.set(ThreadId.get(), ticket);
-		  currentRes.set(ThreadId.get(), "true"); 
+          postTime = System.nanoTime();
+          inqTime.set(ThreadId.get(), inqTime.get(ThreadId.get()) + (postTime - preTime));
+          inqCount.set(ThreadId.get(), inqCount.get(ThreadId.get()) + 1);
 		  return true;
 		default:
 		  System.out.println("Error in execution.");
@@ -187,62 +160,66 @@ public class Test{
 	}
 	threadnum = Integer.parseInt(args[0]);
 	testnum = Integer.parseInt(args[1]);
-    isSequential = false;
-	msec = 0;
-	nsec = 0;
 	readConfig("TrainConfig");
 	Thread[] threads = new Thread[threadnum];
-	fin = new boolean[threadnum];
     
-	final long startTime = System.nanoTime();
+    initialization();
 	for (int i = 0; i < threadnum; i++) {
 	    	threads[i] = new Thread(new Runnable() {
                 public void run() {
-					if(ThreadId.get() == 0){
-					  initialization();
-					  initLock = true;
-					}
-					else{
-					  while(!initLock){
-						;
-					  }
-					}
 					for(int k = 0; k < testnum; k++){
 					  int sel = rand.nextInt(totalPc);
 					  int cnt = 0;
-
 					  for(int j = 0; j < methodList.size(); j++){
 						if(sel >= cnt && sel < cnt + freqList.get(j)){
-						  long preTime = System.nanoTime() - startTime;
 						  execute(j);
-						  long postTime = System.nanoTime() - startTime;
-                          double diffTime = postTime - preTime;
-                          synchronized(this) {
-                            // newavg = (oldavg * (size - 1) + newvalue) / size
-                            methodCount.set(j, methodCount.get(j) + 1);
-                            methodTime.set(j, (methodTime.get(j) * (methodCount.get(j) - 1) + diffTime) / methodCount.get(j));
-                          }
 						  cnt += freqList.get(j);
 						}
 					  }
 					}
 				}
             });
-			threads[i].start();
 	  }
 	
-	  for (int i = 0; i< threadnum; i++) {
+	  final long startTime = System.nanoTime();
+      for (int i = 0; i < threadnum; i++) {
+        threads[i].start();
+      }
+	  for (int i = 0; i < threadnum; i++) {
 		threads[i].join();
 	  }	
       double totalTime = System.nanoTime() - startTime;
 
-      long totalCount = 0;
-      for (int i = 0; i < methodList.size(); ++i) {
-        System.out.println("Method: " + methodList.get(i));
-        System.out.println("Call " + methodCount.get(i) + " times, ");
-        System.out.println("Average Cost: " + methodTime.get(i) + " ns.\n");
-        totalCount += methodCount.get(i);
+      long totalBuyTime = 0;
+      long totalInqTime = 0;
+      long totalRefTime = 0;
+      long totalBuyCount = 0;
+      long totalInqCount = 0;
+      long totalRefCount = 0;
+
+      for (int i = 0; i < threadnum; ++i) {
+          totalBuyTime += buyTime.get(i);
+          totalInqTime += inqTime.get(i);
+          totalRefTime += refTime.get(i);
+          totalBuyCount += buyCount.get(i);
+          totalInqCount += inqCount.get(i);
+          totalRefCount += refCount.get(i);
       }
+      
+      long totalCount = totalBuyCount + totalInqCount + totalRefCount;
+
+      System.out.println("Method: buyTicket");
+      System.out.println("Call " + totalBuyCount + " times, ");
+      System.out.println("Average Cost: " +  (double) totalBuyTime / totalBuyCount + " ns.\n");
+
+      System.out.println("Method: inquiry");
+      System.out.println("Call " + totalInqCount + " times, ");
+      System.out.println("Average Cost: " +  (double) totalInqTime / totalInqCount + " ns.\n");
+
+      System.out.println("Method: refundTicket");
+      System.out.println("Call " + totalRefCount + " times, ");
+      System.out.println("Average Cost: " +  (double) totalRefTime / totalRefCount + " ns.\n");
+
       System.out.println("Total Count: " + totalCount + " times.");
       System.out.println("Throughput: " + totalCount / totalTime * 1e6 + " times / ms.");
 	}
