@@ -186,7 +186,7 @@ public class Test{
 	  return;
 	}
 	threadnum = Integer.parseInt(args[0]);
-	testnum = Integer.parseInt(args[1]) / threadnum;
+	testnum = Integer.parseInt(args[1]);
     isSequential = false;
 	msec = 0;
 	nsec = 0;
@@ -234,6 +234,7 @@ public class Test{
 	  for (int i = 0; i< threadnum; i++) {
 		threads[i].join();
 	  }	
+      double totalTime = System.nanoTime() - startTime;
 
       long totalCount = 0;
       for (int i = 0; i < methodList.size(); ++i) {
@@ -242,7 +243,6 @@ public class Test{
         System.out.println("Average Cost: " + methodTime.get(i) + " ns.\n");
         totalCount += methodCount.get(i);
       }
-      double totalTime = System.nanoTime() - startTime;
       System.out.println("Total Count: " + totalCount + " times.");
       System.out.println("Throughput: " + totalCount / totalTime * 1e6 + " times / ms.");
 	}
