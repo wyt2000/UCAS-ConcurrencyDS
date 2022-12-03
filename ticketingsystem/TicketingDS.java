@@ -4,12 +4,14 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class TicketingDS implements TicketingSystem {
     private int routenum;
     private int coachnum;
     private int seatnum;
     private int stationnum;
+    private final int tryTimes = 20;
 
     private AtomicLong tid;                                         // Next available tid.
     private HashSet<Ticket> tickets;                                // Tickets sold.
@@ -36,24 +38,36 @@ public class TicketingDS implements TicketingSystem {
             seats.add(seatsPerCoach);
         }
     }
+    
+    private boolean isAvailable(int route, int departure, int arrival, int i) {
+        int j;
+        for (j = departure; j < arrival; ++j) {
+            if (seats.get(route - 1).get(i).get(j - 1).get()) {
+                return false;
+            }
+        }
+        return true;
+    } 
 
     @Override
     public Ticket buyTicket(String passenger, int route, int departure, int arrival) {
         /* Find a seat of route, which isn't occupied [departure, arrival). */
-        int i;
-        for (i = 0; i < coachnum * seatnum; ++i) {
-            int j;
-            for (j = departure; j < arrival; ++j) {
-                if (seats.get(route - 1).get(i).get(j - 1).get()) {
+        int i = -1;
+        for (int j = 0; j < tryTimes; ++j) {
+            int seat = ThreadLocalRandom.current().nextInt(0, coachnum * seatnum);
+            if (isAvailable(route, departure, arrival, seat)) {
+                i = seat;
+            }
+        }
+        if (i == -1) {
+            for (i = 0; i < coachnum * seatnum; ++i) {
+                if (isAvailable(route, departure, arrival, i)) {
                     break;
                 }
             }
-            if (j == arrival) {
-                break;
+            if (i == coachnum * seatnum) {
+                return null;
             }
-        }
-        if (i == coachnum * seatnum) {
-            return null;
         }
 
         /* Occupied the stations. */
@@ -83,13 +97,7 @@ public class TicketingDS implements TicketingSystem {
         int cnt = 0;
         int i;
         for (i = 0; i < coachnum * seatnum; ++i) {
-            int j;
-            for (j = departure; j < arrival; ++j) {
-                if (seats.get(route - 1).get(i).get(j - 1).get()) {
-                    break;
-                }
-            }
-            if (j == arrival) {
+            if (isAvailable(route, departure, arrival, i)) {
                 ++cnt;
             }
         }
