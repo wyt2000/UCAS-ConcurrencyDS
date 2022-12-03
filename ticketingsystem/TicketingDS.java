@@ -13,8 +13,8 @@ public class TicketingDS implements TicketingSystem {
     private int stationnum;
     private final int tryTimes = 20;
 
-    private AtomicLong tid;                                         // Next available tid.
-    private HashSet<Ticket> tickets;                                // Tickets sold.
+    private AtomicLong tid;                                               // Next available tid.
+    private HashSet<Ticket> tickets;                                      // Tickets sold.
     private ArrayList<ArrayList<ArrayList<AtomicBoolean>>> seats;         // Seat id to stations of every route.
 
     public TicketingDS(int _routenum, int _coachnum, int _seatnum, int _stationnum, int _threadnum) {
