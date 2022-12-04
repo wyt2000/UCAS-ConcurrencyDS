@@ -62,8 +62,13 @@ public class TicketingDS implements TicketingSystem {
         }
 
         /* Occupied the stations. */
-        long old = seats.get(route - 1).get(i).get();
-        seats.get(route - 1).get(i).set(bitmask | old);
+        while (true) {
+            long oldAva = seats.get(route - 1).get(i).get();
+            long newAva = bitmask | oldAva; 
+            if (seats.get(route - 1).get(i).compareAndSet(oldAva, newAva)) {
+                break;
+            }
+        }
 
         int coach = i / seatnum + 1; 
         int seat = i % seatnum + 1; 
@@ -105,8 +110,14 @@ public class TicketingDS implements TicketingSystem {
         int seat = (ticket.coach - 1) * seatnum + (ticket.seat - 1);
 
         long bitmask = ((-1) >>> (ticket.departure - 1)) & ((-1) << (64 - ticket.arrival + 1));  
-        long old = seats.get(ticket.route - 1).get(seat).get();
-        seats.get(ticket.route - 1).get(seat).set((~bitmask) & old);
+        
+        while (true) {
+            long oldAva = seats.get(ticket.route - 1).get(seat).get();
+            long newAva = (~bitmask) & oldAva;
+            if (seats.get(ticket.route - 1).get(seat).compareAndSet(oldAva, newAva)) {
+                break;
+            }
+        }
 
         synchronized (this) {
             tickets.remove(ticket);
