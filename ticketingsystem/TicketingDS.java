@@ -3,13 +3,11 @@ package ticketingsystem;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.ThreadLocalRandom;
 
 public class TicketingDS implements TicketingSystem {
     private int routenum;
     private int coachnum;
     private int seatnum;
-    private final int tryTimes = 10;
 
     private AtomicLong tid;                                               // Next available tid.
     private HashSet<Ticket> tickets;                                      // Tickets sold.
@@ -42,32 +40,21 @@ public class TicketingDS implements TicketingSystem {
     @Override
     public Ticket buyTicket(String passenger, int route, int departure, int arrival) {
         /* Find a seat of route, which isn't occupied [departure, arrival). */
-        int i = -1;
         long bitmask = ((-1) >>> (departure - 1)) & ((-1) << (64 - arrival + 1));  
-        for (int j = 0; j < tryTimes; ++j) {
-            int seat = ThreadLocalRandom.current().nextInt(0, coachnum * seatnum);
-            if (isAvailable(route, bitmask, seat)) {
-                i = seat;
-            }
-        }
-        if (i == -1) {
-            for (i = 0; i < coachnum * seatnum; ++i) {
-                if (isAvailable(route, bitmask, i)) {
-                    break;
+        int i;
+        search: for (i = 0; i < coachnum * seatnum; ++i) {
+            /* Occupy the stations. */
+            while (isAvailable(route, bitmask, i)) {
+                long oldAva = seats.get(route - 1).get(i).get();
+                long newAva = bitmask | oldAva; 
+                /* If no modified, occupy successfully, otherwise test again. */
+                if (seats.get(route - 1).get(i).compareAndSet(oldAva, newAva)) {
+                    break search;
                 }
             }
-            if (i == coachnum * seatnum) {
-                return null;
-            }
         }
-
-        /* Occupied the stations. */
-        while (true) {
-            long oldAva = seats.get(route - 1).get(i).get();
-            long newAva = bitmask | oldAva; 
-            if (seats.get(route - 1).get(i).compareAndSet(oldAva, newAva)) {
-                break;
-            }
+        if (i == coachnum * seatnum) {
+            return null;
         }
 
         int coach = i / seatnum + 1; 
