@@ -6,7 +6,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongArray;
 
 class BitMap {
-    private final int LONG_BITS = Long.BYTES * 8;
+    private static final int LONG_BITS = Long.BYTES * 8;
     public int blockNum;
     public AtomicLongArray blocks;
     public BitMap(int capacity) {
@@ -35,25 +35,26 @@ class BitMap {
             }
         }
     }
-    public static int countOnes(long bits) {
-        int cnt = 0;
-        while (bits != 0) {
-            bits &= (bits - 1);
-            ++cnt;
-        }
-        return cnt;
-    }
     public static int countOnes(ArrayList<Long> bitsArray) {
         int cnt = 0;
         for (long bits : bitsArray) {
-            cnt += countOnes(bits);
+            cnt += Long.bitCount(bits); 
         }
         return cnt;
+    }
+    public static int findFirstZero(ArrayList<Long> bitsArray) {
+        for (int blockId = 0; blockId < bitsArray.size(); ++blockId) {
+            int pos = Long.numberOfLeadingZeros(~bitsArray.get(blockId));
+            if (pos < LONG_BITS) {
+                return blockId * LONG_BITS + pos;
+            }
+        }
+        return -1;
     }
 };
 
 public class TicketingDS implements TicketingSystem {
-    private final int LONG_BITS = Long.BYTES * 8;
+    private static final int LONG_BITS = Long.BYTES * 8;
     private int routenum;
     private int coachnum;
     private int seatnum;
