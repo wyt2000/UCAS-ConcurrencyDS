@@ -1,7 +1,7 @@
 package ticketingsystem;
 
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class TicketingDS implements TicketingSystem {
@@ -10,7 +10,7 @@ public class TicketingDS implements TicketingSystem {
     private int seatnum;
 
     private AtomicLong tid;                                               // Next available tid.
-    private HashSet<Ticket> tickets;                                      // Tickets sold.
+    private ConcurrentHashMap<Long, Ticket> tickets;                                      // Tickets sold.
     private ArrayList<ArrayList<AtomicLong>> seats;                       // Seat id to stations of every route.
 
     public TicketingDS(int _routenum, int _coachnum, int _seatnum, int _stationnum, int _threadnum) {
@@ -19,7 +19,7 @@ public class TicketingDS implements TicketingSystem {
         seatnum     = _seatnum;
 
         tid         = new AtomicLong(0);
-        tickets     = new HashSet<Ticket>();
+        tickets     = new ConcurrentHashMap<Long, Ticket>();
         seats       = new ArrayList<ArrayList<AtomicLong>>();
         for (int i = 0; i < routenum; ++i) {
             ArrayList<AtomicLong> seatsPerCoach = new ArrayList<AtomicLong>();
@@ -68,9 +68,8 @@ public class TicketingDS implements TicketingSystem {
         t.seat = seat;
         t.departure = departure;
         t.arrival = arrival;
-        synchronized (this) {
-            tickets.add(t);
-        }
+        
+        tickets.put(t.tid, t);
         return t;
     }
 
@@ -89,10 +88,11 @@ public class TicketingDS implements TicketingSystem {
 
     @Override
     public boolean refundTicket(Ticket ticket) {
-        synchronized (this) {
-            if (!tickets.contains(ticket)) {
-                return false;
-            }
+        if (!tickets.containsKey(ticket.tid)) {
+            return false;
+        }
+        if (!ticket.equals(tickets.get(ticket.tid))) {
+            return false;
         }
         int seat = (ticket.coach - 1) * seatnum + (ticket.seat - 1);
 
@@ -106,9 +106,7 @@ public class TicketingDS implements TicketingSystem {
             }
         }
 
-        synchronized (this) {
-            tickets.remove(ticket);
-        }
+        tickets.remove(ticket.tid);
         return true;
     }
 
