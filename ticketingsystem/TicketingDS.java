@@ -29,7 +29,7 @@ class BitMap {
         long j = pos % LONG_BITS;
         while (true) {
             long oldValue = blocks.get(i);
-            long newValue = oldValue &  (~(1L << j));
+            long newValue = oldValue & (~(1L << j));
             if (blocks.compareAndSet(i, oldValue, newValue)) {
                 break;
             }
@@ -99,6 +99,20 @@ public class TicketingDS implements TicketingSystem {
         return false;
     } 
 
+    private ArrayList<Long> getSeatsOccupied(int route, int departure, int arrival) {
+        ArrayList<Long> seats = new ArrayList<Long>();
+        for (int j = 0; j < blockNum; ++j) {
+            seats.add(0L);
+        } 
+        ArrayList<BitMap> stationsThisRoute = stations.get(route - 1);
+        for (int i = departure; i < arrival; ++i) {
+            for (int j = 0; j < blockNum; ++j) {
+                seats.set(j, seats.get(j) | stationsThisRoute.get(i - 1).blocks.get(j));
+            }
+        }
+        return seats;
+    }
+
     @Override
     public Ticket buyTicket(String passenger, int route, int departure, int arrival) {
         /* Find a seat of route, which isn't occupied [departure, arrival). */
@@ -140,17 +154,7 @@ public class TicketingDS implements TicketingSystem {
 
     @Override
     public int inquiry(int route, int departure, int arrival) {
-        ArrayList<Long> seats = new ArrayList<Long>();
-        for (int j = 0; j < blockNum; ++j) {
-            seats.add(0L);
-        } 
-        ArrayList<BitMap> stationsThisRoute = stations.get(route - 1);
-        for (int i = departure; i < arrival; ++i) {
-            for (int j = 0; j < blockNum; ++j) {
-                seats.set(j, seats.get(j) | stationsThisRoute.get(i - 1).blocks.get(j));
-            }
-        }
-        return totalseatnum - BitMap.countOnes(seats);
+        return totalseatnum - BitMap.countOnes(getSeatsOccupied(route, departure, arrival));
     }
 
     @Override
