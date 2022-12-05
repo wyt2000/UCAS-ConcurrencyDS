@@ -43,13 +43,15 @@ class BitMap {
         return cnt;
     }
     public static int findFirstZero(ArrayList<Long> bitsArray) {
+        int ans = Integer.MAX_VALUE;
         for (int blockId = 0; blockId < bitsArray.size(); ++blockId) {
-            int pos = Long.numberOfLeadingZeros(~bitsArray.get(blockId));
+            int pos = Long.numberOfTrailingZeros(~bitsArray.get(blockId));
             if (pos < LONG_BITS) {
-                return blockId * LONG_BITS + pos;
+                ans = blockId * LONG_BITS + pos;
+                break;
             }
         }
-        return -1;
+        return ans;
     }
 };
 
@@ -119,7 +121,11 @@ public class TicketingDS implements TicketingSystem {
         /* Find a seat of route, which isn't occupied [departure, arrival). */
         long bitmask = ((-1) >>> (departure - 1)) & ((-1) << (LONG_BITS - arrival + 1));  
         int i;
-        search: for (i = 0; i < totalseatnum; ++i) {
+        search: while (true) {
+            i = BitMap.findFirstZero(getSeatsOccupied(route, departure, arrival));
+            if (i >= totalseatnum) {
+                return null;
+            }
             /* Occupy the stations. */
             while (isAvailable(route, bitmask, i)) {
                 long oldAva = seats.get(route - 1).get(i).get();
@@ -129,9 +135,6 @@ public class TicketingDS implements TicketingSystem {
                     break search;
                 }
             }
-        }
-        if (i == totalseatnum) {
-            return null;
         }
         for (int s = departure; s < arrival; ++s) {
             stations.get(route - 1).get(s - 1).setBit(i);
