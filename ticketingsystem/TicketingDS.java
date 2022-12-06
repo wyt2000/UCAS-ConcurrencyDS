@@ -1,12 +1,10 @@
 package ticketingsystem;
 
-import java.util.ArrayList;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongArray;
 import java.util.Arrays;
-
 
 class BitMap {
     class TimeStampedLong {
@@ -116,8 +114,8 @@ public class TicketingDS implements TicketingSystem {
 
     private AtomicLong tid;                                               // Next available tid.
     private ConcurrentHashMap<Long, Ticket> tickets;                      // Tickets sold.
-    private ArrayList<ArrayList<AtomicLong>> seats;                       // Seat id to stations of every route.
-    private ArrayList<ArrayList<BitMap>> stations;
+    private AtomicLong[][] seats;                       // Seat id to stations of every route.
+    private BitMap[][] stations;
 
     public TicketingDS(int _routenum, int _coachnum, int _seatnum, int _stationnum, int _threadnum) {
         routenum        = _routenum;
@@ -129,24 +127,20 @@ public class TicketingDS implements TicketingSystem {
 
         tid             = new AtomicLong(0);
         tickets         = new ConcurrentHashMap<Long, Ticket>();
-        seats           = new ArrayList<ArrayList<AtomicLong>>();
-        stations        = new ArrayList<ArrayList<BitMap>>();
+        seats           = new AtomicLong[routenum][totalseatnum];
+        stations        = new BitMap[routenum][stationnum];
         for (int i = 0; i < routenum; ++i) {
-            ArrayList<AtomicLong> seatsPerCoach = new ArrayList<AtomicLong>();
-            for (long j = 0; j < totalseatnum; ++j) {
-                seatsPerCoach.add(new AtomicLong(0));
+            for (int j = 0; j < totalseatnum; ++j) {
+                seats[i][j] = new AtomicLong(0);
             }
-            seats.add(seatsPerCoach);
-            ArrayList<BitMap> stationsPerRoute = new ArrayList<BitMap>();
             for (int j = 0; j < stationnum; ++j) {
-                stationsPerRoute.add(new BitMap(totalseatnum));
+                stations[i][j] = new BitMap(totalseatnum);
             }
-            stations.add(stationsPerRoute);
         }
     }
     
     private boolean isAvailable(int route, long bitmask, int i) {
-        if ((seats.get(route - 1).get(i).get() & bitmask) == 0) {
+        if ((seats[route - 1][i].get() & bitmask) == 0) {
             return true;
         }
         return false;
@@ -154,9 +148,8 @@ public class TicketingDS implements TicketingSystem {
 
     private long[] getSeatsOccupied(int route, int departure, int arrival) {
         long[] seats = new long[blockNum];
-        ArrayList<BitMap> stationsThisRoute = stations.get(route - 1);
         for (int i = departure; i < arrival; ++i) {
-            long[] snapshot = stationsThisRoute.get(i - 1).scan();
+            long[] snapshot = stations[route - 1][i - 1].scan();
             for (int j = 0; j < blockNum; ++j) {
                 seats[j] |= snapshot[j];
             }
@@ -176,16 +169,16 @@ public class TicketingDS implements TicketingSystem {
             }
             /* Occupy the stations. */
             while (isAvailable(route, bitmask, i)) {
-                long oldAva = seats.get(route - 1).get(i).get();
-                long newAva = bitmask | oldAva; 
+                long oldValue = seats[route - 1][i].get();
+                long newValue = bitmask | oldValue; 
                 /* If no modified, occupy successfully, otherwise test again. */
-                if (seats.get(route - 1).get(i).compareAndSet(oldAva, newAva)) {
+                if (seats[route - 1][i].compareAndSet(oldValue, newValue)) {
                     break search;
                 }
             }
         }
         for (int s = departure; s < arrival; ++s) {
-            stations.get(route - 1).get(s - 1).setBit(i);
+            stations[route - 1][s - 1].setBit(i);
         }
 
         int coach = i / seatnum + 1; 
@@ -222,15 +215,15 @@ public class TicketingDS implements TicketingSystem {
         long bitmask = ((-1) >>> (ticket.departure - 1)) & ((-1) << (LONG_BITS - ticket.arrival + 1));  
         
         while (true) {
-            long oldAva = seats.get(ticket.route - 1).get(seat).get();
-            long newAva = (~bitmask) & oldAva;
-            if (seats.get(ticket.route - 1).get(seat).compareAndSet(oldAva, newAva)) {
+            long oldValue = seats[ticket.route - 1][seat].get();
+            long newValue = (~bitmask) & oldValue;
+            if (seats[ticket.route - 1][seat].compareAndSet(oldValue, newValue)) {
                 break;
             }
         }
 
         for (int s = ticket.departure; s < ticket.arrival; ++s) {
-            stations.get(ticket.route - 1).get(s - 1).clearBit(seat);
+            stations[ticket.route - 1][s - 1].clearBit(seat);
         }
 
         tickets.remove(ticket.tid);
