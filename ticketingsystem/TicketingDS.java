@@ -1,17 +1,41 @@
 package ticketingsystem;
 
 import java.util.ArrayList;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongArray;
 
+
 class BitMap {
+    class TimeStampedLong {
+        long value;        
+        long timeStamp;
+        public TimeStampedLong(long _value, long _timeStamp) {
+            value = _value;
+            timeStamp = _timeStamp;
+        }
+        @Override
+        public int hashCode() {
+            return Objects.hash(value, timeStamp);
+        }
+        @Override
+        public boolean equals(Object object) {
+            TimeStampedLong t = (TimeStampedLong) object;
+            if (t == null) return false;
+            if (value != t.value) return false;
+            if (timeStamp != t.timeStamp) return false;
+            return true;
+        }
+    }
     private static final int LONG_BITS = Long.BYTES * 8;
     public int blockNum;
     public AtomicLongArray blocks;
+    public AtomicLongArray timeStamps;
     public BitMap(int capacity) {
         blockNum = (capacity + LONG_BITS - 1) / LONG_BITS;
         blocks = new AtomicLongArray(blockNum);
+        timeStamps = new AtomicLongArray(blockNum);
     }
     public void setBit(int pos) {
         int i = pos / LONG_BITS;
@@ -20,6 +44,7 @@ class BitMap {
             long oldValue = blocks.get(i);
             long newValue = oldValue | (1L << j);
             if (blocks.compareAndSet(i, oldValue, newValue)) {
+                timeStamps.getAndIncrement(i);
                 break;
             }
         }
@@ -31,9 +56,33 @@ class BitMap {
             long oldValue = blocks.get(i);
             long newValue = oldValue & (~(1L << j));
             if (blocks.compareAndSet(i, oldValue, newValue)) {
+                timeStamps.getAndIncrement(i);
                 break;
             }
         }
+    }
+    private ArrayList<TimeStampedLong> collect() {
+        ArrayList<TimeStampedLong> copy = new ArrayList<TimeStampedLong>();
+        for (int i = 0; i < blockNum; ++i) {
+            copy.add(new TimeStampedLong(blocks.get(i), timeStamps.get(i)));
+        }
+        return copy;
+    }
+    public ArrayList<Long> scan() {
+        ArrayList<TimeStampedLong> oldCopy = collect();
+        ArrayList<TimeStampedLong> newCopy;
+        while (true) {
+            newCopy = collect();
+            if (oldCopy.equals(newCopy)) {
+                break;
+            }
+            oldCopy = newCopy;
+        }
+        ArrayList<Long> ans = new ArrayList<Long>();
+        for (int i = 0; i < newCopy.size(); ++i) {
+            ans.add(newCopy.get(i).value);
+        }
+        return ans;
     }
     public static int countOnes(ArrayList<Long> bitsArray) {
         int cnt = 0;
@@ -109,8 +158,9 @@ public class TicketingDS implements TicketingSystem {
         } 
         ArrayList<BitMap> stationsThisRoute = stations.get(route - 1);
         for (int i = departure; i < arrival; ++i) {
+            ArrayList<Long> snapshot = stationsThisRoute.get(i - 1).scan();
             for (int j = 0; j < blockNum; ++j) {
-                seats.set(j, seats.get(j) | stationsThisRoute.get(i - 1).blocks.get(j));
+                seats.set(j, seats.get(j) | snapshot.get(j));
             }
         }
         return seats;
