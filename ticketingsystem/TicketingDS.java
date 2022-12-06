@@ -146,24 +146,19 @@ public class TicketingDS implements TicketingSystem {
         return false;
     } 
 
-    private long[] getSeatsOccupied(int route, int departure, int arrival) {
-        long[] seats = new long[blockNum];
-        for (int i = departure; i < arrival; ++i) {
-            long[] snapshot = stations[route - 1][i - 1].scan();
-            for (int j = 0; j < blockNum; ++j) {
-                seats[j] |= snapshot[j];
-            }
-        }
-        return seats;
-    }
-
     @Override
     public Ticket buyTicket(String passenger, int route, int departure, int arrival) {
         /* Find a seat of route, which isn't occupied [departure, arrival). */
         long bitmask = ((-1) >>> (departure - 1)) & ((-1) << (LONG_BITS - arrival + 1));  
         int i;
         search: while (true) {
-            i = BitMap.findFirstZero(getSeatsOccupied(route, departure, arrival));
+            long[] seatVector = new long[blockNum];
+            for (int s = departure; s < arrival; ++s) {
+                for (int j = 0; j < blockNum; ++j) {
+                    seatVector[j] |= stations[route - 1][s - 1].blocks.get(j);
+                }
+            }
+            i = BitMap.findFirstZero(seatVector);
             if (i >= totalseatnum) {
                 return null;
             }
@@ -199,7 +194,14 @@ public class TicketingDS implements TicketingSystem {
 
     @Override
     public int inquiry(int route, int departure, int arrival) {
-        return totalseatnum - BitMap.countOnes(getSeatsOccupied(route, departure, arrival));
+        long[] seatVector = new long[blockNum];
+        for (int i = departure; i < arrival; ++i) {
+            long[] snapshot = stations[route - 1][i - 1].scan();
+            for (int j = 0; j < blockNum; ++j) {
+                seatVector[j] |= snapshot[j];
+            }
+        }
+        return totalseatnum - BitMap.countOnes(seatVector);
     }
 
     @Override
