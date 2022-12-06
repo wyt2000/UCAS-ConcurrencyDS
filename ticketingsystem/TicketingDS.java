@@ -3,7 +3,7 @@ package ticketingsystem;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicLongArray;
+import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.Arrays;
 
 class BitMap {
@@ -29,21 +29,21 @@ class BitMap {
     }
     private static final int LONG_BITS = Long.BYTES * 8;
     public int blockNum;
-    public AtomicLongArray blocks;
-    public AtomicLongArray timeStamps;
+    public AtomicReferenceArray<TimeStampedLong> blocks;
     public BitMap(int capacity) {
         blockNum = (capacity + LONG_BITS - 1) / LONG_BITS;
-        blocks = new AtomicLongArray(blockNum);
-        timeStamps = new AtomicLongArray(blockNum);
+        blocks = new AtomicReferenceArray<TimeStampedLong>(blockNum);
+        for (int i = 0; i < blockNum; ++i) {
+            blocks.set(i, new TimeStampedLong(0L, 0L));
+        }
     }
     public void setBit(int pos) {
         int i = pos / LONG_BITS;
         long j = pos % LONG_BITS;
         while (true) {
-            long oldValue = blocks.get(i);
-            long newValue = oldValue | (1L << j);
+            TimeStampedLong oldValue = blocks.get(i);
+            TimeStampedLong newValue = new TimeStampedLong(oldValue.value | (1L << j), oldValue.timeStamp + 1);
             if (blocks.compareAndSet(i, oldValue, newValue)) {
-                timeStamps.getAndIncrement(i);
                 break;
             }
         }
@@ -52,10 +52,9 @@ class BitMap {
         int i = pos / LONG_BITS;
         long j = pos % LONG_BITS;
         while (true) {
-            long oldValue = blocks.get(i);
-            long newValue = oldValue & (~(1L << j));
+            TimeStampedLong oldValue = blocks.get(i);
+            TimeStampedLong newValue = new TimeStampedLong(oldValue.value & (~(1L << j)), oldValue.timeStamp + 1);
             if (blocks.compareAndSet(i, oldValue, newValue)) {
-                timeStamps.getAndIncrement(i);
                 break;
             }
         }
@@ -63,7 +62,7 @@ class BitMap {
     private TimeStampedLong[] collect() {
         TimeStampedLong[] copy = new TimeStampedLong[blockNum];
         for (int i = 0; i < blockNum; ++i) {
-            copy[i] = new TimeStampedLong(blocks.get(i), timeStamps.get(i));
+            copy[i] = blocks.get(i);
         }
         return copy;
     }
@@ -155,7 +154,7 @@ public class TicketingDS implements TicketingSystem {
             long[] seatVector = new long[blockNum];
             for (int s = departure; s < arrival; ++s) {
                 for (int j = 0; j < blockNum; ++j) {
-                    seatVector[j] |= stations[route - 1][s - 1].blocks.get(j);
+                    seatVector[j] |= stations[route - 1][s - 1].blocks.get(j).value;
                 }
             }
             i = BitMap.findFirstZero(seatVector);
