@@ -5,6 +5,7 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongArray;
+import java.util.Arrays;
 
 
 class BitMap {
@@ -61,26 +62,26 @@ class BitMap {
             }
         }
     }
-    private ArrayList<TimeStampedLong> collect() {
-        ArrayList<TimeStampedLong> copy = new ArrayList<TimeStampedLong>();
+    private TimeStampedLong[] collect() {
+        TimeStampedLong[] copy = new TimeStampedLong[blockNum];
         for (int i = 0; i < blockNum; ++i) {
-            copy.add(new TimeStampedLong(blocks.get(i), timeStamps.get(i)));
+            copy[i] = new TimeStampedLong(blocks.get(i), timeStamps.get(i));
         }
         return copy;
     }
-    public ArrayList<Long> scan() {
-        ArrayList<TimeStampedLong> oldCopy = collect();
-        ArrayList<TimeStampedLong> newCopy;
+    public long[] scan() {
+        TimeStampedLong[] oldCopy = collect();
+        TimeStampedLong[] newCopy;
         while (true) {
             newCopy = collect();
-            if (oldCopy.equals(newCopy)) {
+            if (Arrays.equals(oldCopy, newCopy)) {
                 break;
             }
             oldCopy = newCopy;
         }
-        ArrayList<Long> ans = new ArrayList<Long>();
-        for (int i = 0; i < newCopy.size(); ++i) {
-            ans.add(newCopy.get(i).value);
+        long[] ans = new long[newCopy.length];
+        for (int i = 0; i < newCopy.length; ++i) {
+            ans[i] = newCopy[i].value;
         }
         return ans;
     }
@@ -158,9 +159,9 @@ public class TicketingDS implements TicketingSystem {
         } 
         ArrayList<BitMap> stationsThisRoute = stations.get(route - 1);
         for (int i = departure; i < arrival; ++i) {
-            ArrayList<Long> snapshot = stationsThisRoute.get(i - 1).scan();
+            long[] snapshot = stationsThisRoute.get(i - 1).scan();
             for (int j = 0; j < blockNum; ++j) {
-                seats.set(j, seats.get(j) | snapshot.get(j));
+                seats.set(j, seats.get(j) | snapshot[j]);
             }
         }
         return seats;
