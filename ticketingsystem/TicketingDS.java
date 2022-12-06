@@ -85,17 +85,17 @@ class BitMap {
         }
         return ans;
     }
-    public static int countOnes(ArrayList<Long> bitsArray) {
+    public static int countOnes(long[] bitsArray) {
         int cnt = 0;
         for (long bits : bitsArray) {
             cnt += Long.bitCount(bits); 
         }
         return cnt;
     }
-    public static int findFirstZero(ArrayList<Long> bitsArray) {
+    public static int findFirstZero(long[] bitsArray) {
         int ans = Integer.MAX_VALUE;
-        for (int blockId = 0; blockId < bitsArray.size(); ++blockId) {
-            int pos = Long.numberOfTrailingZeros(~bitsArray.get(blockId));
+        for (int blockId = 0; blockId < bitsArray.length; ++blockId) {
+            int pos = Long.numberOfTrailingZeros(~ bitsArray[blockId]);
             if (pos < LONG_BITS) {
                 ans = blockId * LONG_BITS + pos;
                 break;
@@ -152,16 +152,13 @@ public class TicketingDS implements TicketingSystem {
         return false;
     } 
 
-    private ArrayList<Long> getSeatsOccupied(int route, int departure, int arrival) {
-        ArrayList<Long> seats = new ArrayList<Long>();
-        for (int j = 0; j < blockNum; ++j) {
-            seats.add(0L);
-        } 
+    private long[] getSeatsOccupied(int route, int departure, int arrival) {
+        long[] seats = new long[blockNum];
         ArrayList<BitMap> stationsThisRoute = stations.get(route - 1);
         for (int i = departure; i < arrival; ++i) {
             long[] snapshot = stationsThisRoute.get(i - 1).scan();
             for (int j = 0; j < blockNum; ++j) {
-                seats.set(j, seats.get(j) | snapshot[j]);
+                seats[j] |= snapshot[j];
             }
         }
         return seats;
