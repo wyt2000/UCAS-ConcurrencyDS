@@ -1,86 +1,28 @@
 package ticketingsystem;
 
-import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReferenceArray;
-import java.util.Arrays;
 
 class BitMap {
-    class TimeStampedLong {
-        long value;        
-        long timeStamp;
-        public TimeStampedLong(long _value, long _timeStamp) {
-            value = _value;
-            timeStamp = _timeStamp;
-        }
-        @Override
-        public int hashCode() {
-            return Objects.hash(value, timeStamp);
-        }
-        @Override
-        public boolean equals(Object object) {
-            TimeStampedLong t = (TimeStampedLong) object;
-            if (t == null) return false;
-            if (value != t.value) return false;
-            if (timeStamp != t.timeStamp) return false;
-            return true;
-        }
-    }
     private static final int LONG_BITS = Long.BYTES * 8;
     public int blockNum;
-    public AtomicReferenceArray<TimeStampedLong> blocks;
+    public long[] blocks;
     public BitMap(int capacity) {
         blockNum = (capacity + LONG_BITS - 1) / LONG_BITS;
-        blocks = new AtomicReferenceArray<TimeStampedLong>(blockNum);
+        blocks = new long[blockNum];
         for (int i = 0; i < blockNum; ++i) {
-            blocks.set(i, new TimeStampedLong(0L, 0L));
+            blocks[i] = 0L;
         }
     }
     public void setBit(int pos) {
         int i = pos / LONG_BITS;
         long j = pos % LONG_BITS;
-        while (true) {
-            TimeStampedLong oldValue = blocks.get(i);
-            TimeStampedLong newValue = new TimeStampedLong(oldValue.value | (1L << j), oldValue.timeStamp + 1);
-            if (blocks.compareAndSet(i, oldValue, newValue)) {
-                break;
-            }
-        }
+        blocks[i] |= (1L << j);
     }
     public void clearBit(int pos) {
         int i = pos / LONG_BITS;
         long j = pos % LONG_BITS;
-        while (true) {
-            TimeStampedLong oldValue = blocks.get(i);
-            TimeStampedLong newValue = new TimeStampedLong(oldValue.value & (~(1L << j)), oldValue.timeStamp + 1);
-            if (blocks.compareAndSet(i, oldValue, newValue)) {
-                break;
-            }
-        }
-    }
-    private TimeStampedLong[] collect() {
-        TimeStampedLong[] copy = new TimeStampedLong[blockNum];
-        for (int i = 0; i < blockNum; ++i) {
-            copy[i] = blocks.get(i);
-        }
-        return copy;
-    }
-    public long[] scan() {
-        TimeStampedLong[] oldCopy = collect();
-        TimeStampedLong[] newCopy;
-        while (true) {
-            newCopy = collect();
-            if (Arrays.equals(oldCopy, newCopy)) {
-                break;
-            }
-            oldCopy = newCopy;
-        }
-        long[] ans = new long[newCopy.length];
-        for (int i = 0; i < newCopy.length; ++i) {
-            ans[i] = newCopy[i].value;
-        }
-        return ans;
+        blocks[i] &= ~(1L << j);
     }
     public static int countOnes(long[] bitsArray) {
         int cnt = 0;
@@ -154,7 +96,7 @@ public class TicketingDS implements TicketingSystem {
             long[] seatVector = new long[blockNum];
             for (int s = departure; s < arrival; ++s) {
                 for (int j = 0; j < blockNum; ++j) {
-                    seatVector[j] |= stations[route - 1][s - 1].blocks.get(j).value;
+                    seatVector[j] |= stations[route - 1][s - 1].blocks[j];
                 }
             }
             i = BitMap.findFirstZero(seatVector);
@@ -197,10 +139,11 @@ public class TicketingDS implements TicketingSystem {
     @Override
     public int inquiry(int route, int departure, int arrival) {
         long[] seatVector = new long[blockNum];
-        for (int i = departure; i < arrival; ++i) {
-            long[] snapshot = stations[route - 1][i - 1].scan();
-            for (int j = 0; j < blockNum; ++j) {
-                seatVector[j] |= snapshot[j];
+        synchronized (stations[route - 1]) {
+            for (int i = departure; i < arrival; ++i) {
+                for (int j = 0; j < blockNum; ++j) {
+                    seatVector[j] |= stations[route - 1][i - 1].blocks[j];
+                }
             }
         }
         return totalseatnum - BitMap.countOnes(seatVector);
