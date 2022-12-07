@@ -163,7 +163,7 @@ public class TicketingDS implements TicketingSystem {
             }
             /* Occupy the stations. */
             while (isAvailable(route, bitmask, i)) {
-                long oldValue = seats[route - 1][i].get();
+                long oldValue = (~bitmask) & seats[route - 1][i].get();
                 long newValue = bitmask | oldValue; 
                 /* If no modified, occupy successfully, otherwise test again. */
                 if (seats[route - 1][i].compareAndSet(oldValue, newValue)) {
@@ -211,6 +211,9 @@ public class TicketingDS implements TicketingSystem {
         if (!ticket.equals(tickets.get(ticket.tid))) {
             return false;
         }
+        if (tickets.remove(ticket.tid) == null) {
+            return false;
+        }
         int seat = (ticket.coach - 1) * seatnum + (ticket.seat - 1);
 
         long bitmask = ((-1) >>> (ticket.departure - 1)) & ((-1) << (LONG_BITS - ticket.arrival + 1));  
@@ -227,7 +230,6 @@ public class TicketingDS implements TicketingSystem {
             stations[ticket.route - 1][s - 1].clearBit(seat);
         }
 
-        tickets.remove(ticket.tid);
         return true;
     }
 
