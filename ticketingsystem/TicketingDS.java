@@ -171,8 +171,11 @@ public class TicketingDS implements TicketingSystem {
                 }
             }
         }
-        for (int s = departure; s < arrival; ++s) {
-            stations[route - 1][s - 1].setBit(i);
+
+        synchronized (stations[route - 1]) {
+            for (int s = departure; s < arrival; ++s) {
+                stations[route - 1][s - 1].setBit(i);
+            }
         }
 
         int coach = i / seatnum + 1; 
@@ -226,10 +229,11 @@ public class TicketingDS implements TicketingSystem {
             }
         }
 
-        for (int s = ticket.departure; s < ticket.arrival; ++s) {
-            stations[ticket.route - 1][s - 1].clearBit(seat);
+        synchronized (stations[ticket.route - 1]) {
+            for (int s = ticket.departure; s < ticket.arrival; ++s) {
+                stations[ticket.route - 1][s - 1].clearBit(seat);
+            }
         }
-
         return true;
     }
 
