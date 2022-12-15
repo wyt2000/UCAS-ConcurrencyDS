@@ -53,9 +53,9 @@ public class TicketingDS implements TicketingSystem {
     private int totalseatnum;
     private int blockNum;
 
-    private AtomicLong tid;                                               // Next available tid.
-    private ConcurrentHashMap<Long, Ticket> tickets;                      // Tickets sold.
-    private AtomicLong[][] seats;                       // Seat id to stations of every route.
+    private AtomicLong tid;                          
+    private ConcurrentHashMap<Long, Ticket> tickets;   
+    private AtomicLong[][] seats;                       
     private BitMap[][] stations;
 
     public TicketingDS(int _routenum, int _coachnum, int _seatnum, int _stationnum, int _threadnum) {
