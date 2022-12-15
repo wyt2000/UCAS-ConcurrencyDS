@@ -80,16 +80,8 @@ public class TicketingDS implements TicketingSystem {
         }
     }
     
-    private boolean isAvailable(int route, long bitmask, int i) {
-        if ((seats[route - 1][i].get() & bitmask) == 0) {
-            return true;
-        }
-        return false;
-    } 
-
     @Override
     public Ticket buyTicket(String passenger, int route, int departure, int arrival) {
-        /* Find a seat of route, which isn't occupied [departure, arrival). */
         long bitmask = ((-1) >>> (departure - 1)) & ((-1) << (LONG_BITS - arrival + 1));  
         int i;
         search: while (true) {
@@ -103,11 +95,9 @@ public class TicketingDS implements TicketingSystem {
             if (i >= totalseatnum) {
                 return null;
             }
-            /* Occupy the stations. */
-            while (isAvailable(route, bitmask, i)) {
+            while ((seats[route - 1][i].get() & bitmask) == 0) {
                 long oldValue = (~bitmask) & seats[route - 1][i].get();
                 long newValue = bitmask | oldValue; 
-                /* If no modified, occupy successfully, otherwise test again. */
                 if (seats[route - 1][i].compareAndSet(oldValue, newValue)) {
                     break search;
                 }
