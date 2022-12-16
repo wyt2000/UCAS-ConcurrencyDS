@@ -25,7 +25,7 @@ private BitMap[][] stations;
 
   故站的数量不超过 64，使用一个 `Long` 就能存得下，如果超过 64 则需要使用 `Long` 数组，详见 `BitMap` 。
 
-- `stations`： 大小为 `routenum * stationnum` 的原子数组，用于表示哪辆车在哪个站的哪些座位的票已经卖出去了，该数组用于加速查询。由于一个车最多有 2000 个座位，所以要用很多 `Long` 拼接起来表示，因此使用自定义的类 `BitMap`，其接口包括置位、清零、计算 1 的个数和找到第一个 0 。
+- `stations`： 大小为 `routenum * stationnum` 的数组，用于表示哪辆车在哪个站的哪些座位的票已经卖出去了，该数组用于加速查询。由于一个车最多有 2000 个座位，所以要用很多 `Long` 拼接起来表示，因此使用自定义的类 `BitMap`，其接口包括置位、清零、计算 1 的个数和找到第一个 0 。
 
 ### buyTicket
 
@@ -33,13 +33,13 @@ private BitMap[][] stations;
 
 若该下标超过座位总数，则说明票卖完了，返回 `null`。否则通过将 `seats` 的对应分量和只有 `[departure, arrival)` 对应的位为 1 的 `bitmask` 按位与，结果为 0 则说明该座位确实在这一段是空闲的。为了防止对 `seats` 的并发修改，使用 `CAS` 原语将这些位清零，如果修改失败，则重新判断该座位是否空闲，如果空闲则尝试继续买票，否则重新寻找第一个 0 对应的下标。
 
-购票成功后将 `stations` 的 `[departure, arrival)` 位设为 1，该过程不是原子过程，需要加锁。由于车次之间互不干扰，故只需对每个 `stations[route]` 加细粒度锁。
+购票成功后将 `stations` 的 `[departure, arrival)` 分量的对应位设为 1，该过程不是原子过程，需要加锁。由于车次之间互不干扰，故只需对每个 `stations[route]` 加细粒度锁。
 
 最后递增 `tid` 并将生成的车票加入 `tickets` 映射。
 
 ### refundTicket
 
-首先判断 `tickets` 中是否包含要退的车票，然后尝试删除该车票，如果删除失败，则说明有并发的退票已经删除了，直接返回即可。否则计算座位的下标，分别尝试修改 `seats` 和 `stations`，过程和 `buyTicket` 类似。
+首先判断 `tickets` 中是否包含要退的车票，然后尝试删除该车票，如果删除失败，则说明有并发的退票已经把它删除了，直接返回即可。否则计算座位的下标，分别尝试修改 `seats` 和 `stations`，过程和 `buyTicket` 类似。
 
 ### inquiry
 
@@ -66,7 +66,7 @@ private BitMap[][] stations;
 
 由于对 `tickets` 映射的修改是原子的，故可以根据并发的 `buyTicket` 是否执行到 `tickets.put(t.tid, t)` 来确定已经出票的 `buyTicket` 和 `refundTicket` 之间的顺序。
 
-对于还在搜索空闲座位的 `buyTicket`，它也可能受到并发的 `refundTicket` 的影响，注意到：`refundTicket` 先修改 `seats`，再修改 `stations`，而 `buyTicket` 先查找 `stations`，再修改 `seats`，故当 `buyTicket` 发现 `stations` 的第一个 0 的时候，并发的 `refundTicket` 已经完成了，后面的 `CAS` 原语修改 `seats` 一定可以成功。故可以按照修改 `stations` 的顺序（这是一个原子过程，因为加了锁）为 `buyTicket` 和 `refundTicket` 定序。
+对于还在搜索空闲座位的 `buyTicket`，它也可能受到并发的 `refundTicket` 的影响，注意到：`refundTicket` 先修改 `seats`，再修改 `stations`，而 `buyTicket` 先查找 `stations`，再修改 `seats`，故当 `buyTicket` 发现 `stations` 的第一个 0 的时候，并发的 `refundTicket` 已经完成了，后面的 `CAS` 原语修改 `seats` 一定可以成功。故可以按照修改 `stations` 的顺序（加了锁之后这是一个原子过程）为 `buyTicket` 和 `refundTicket` 定序。
 
 ### buyTicket 和 inquiry 并发
 
